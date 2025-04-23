@@ -11,16 +11,16 @@ import com.jupudi.books.ebookstore.repository.BookRepository;
 @Service
 public class BookService {
 
-    @Autowired
-    private BookRepository bookRepository; // Assuming you have a repository for database interactions
+  //  @Autowired
+  //  private BookRepository bookRepository; // Assuming you have a repository for database interactions
 
     // Save book metadata in the database
     public void saveBook(Book book) {
-        bookRepository.save(book);
+      //  bookRepository.save(book);
     }
 
     // Get all books from the database
-    public List<Book> getAllBooks() {
-        return bookRepository.findAll();
-    }
+   // public List<Book> getAllBooks() {
+       // return bookRepository.findAll();
+   // }
 }

@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.jupudi.books.ebookstore.model.Book;
 import com.jupudi.books.ebookstore.repository.BookRepository;
@@ -90,14 +91,30 @@ public class BookController {
     }
 
     @GetMapping("/{id}/stream")
-    public ResponseEntity<Resource> streamBook(@PathVariable Long id, HttpServletRequest request) throws IOException {
-        Book book = bookRepository.findById(id).orElseThrow();
-        Path file = storagePath.resolve(book.getFilename());
-        InputStreamResource resource = new InputStreamResource(Files.newInputStream(file));
+    public ResponseEntity<Resource> streamBook(@PathVariable Long id, HttpServletRequest request) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found"));
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + book.getTitle() + ".pdf\"")
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(resource);
+        Path file = storagePath.resolve(book.getFilename()).normalize();
+
+        if (!Files.exists(file)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found on server");
+        }
+
+        try {
+            InputStreamResource resource = new InputStreamResource(Files.newInputStream(file));
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + book.getTitle() + ".pdf\"")
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
+                    .body(resource);
+
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error reading file", e);
+        }
     }
+
 }

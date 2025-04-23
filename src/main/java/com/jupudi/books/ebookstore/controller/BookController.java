@@ -35,17 +35,33 @@ public class BookController {
 
     // Endpoint to upload book
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadBook(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadBook(
+        @RequestParam("file") MultipartFile file,
+        @RequestParam("title") String title,
+        @RequestParam("category") String category) {
+        
         try {
-            Map uploadResult = cloudinary.uploader().upload(file.getInputStream(), ObjectUtils.asMap("resource_type", "auto"));
+            // Upload to Cloudinary
+            Map uploadResult = cloudinary.uploader().upload(
+                file.getBytes(), 
+                ObjectUtils.asMap("resource_type", "auto")
+            );
+            
             String publicId = (String) uploadResult.get("public_id");
             String secureUrl = (String) uploadResult.get("secure_url");
-
-            // Store the publicId and secureUrl in your database if needed for later retrieval (optional)
-
-            return ResponseEntity.status(HttpStatus.CREATED).body("Uploaded Successfully. URL: " + secureUrl);
+            
+            // Create and save book to database
+            Book book = new Book();
+            book.setTitle(title);
+            book.setCategory(category);
+            book.setPublicId(publicId);
+            book.setUrl(secureUrl);
+            bookService.saveBook(book);
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(book);
         } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Upload failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Upload failed: " + e.getMessage());
         }
     }
     

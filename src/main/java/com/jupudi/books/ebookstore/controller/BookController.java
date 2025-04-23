@@ -75,35 +75,68 @@ public class BookController {
     }
    
 
-    // Endpoint to view a book (read-only, redirect to Cloudinary URL)
     @GetMapping("/view/{publicId}")
     public ResponseEntity<?> viewBook(@PathVariable String publicId) {
-        String url = cloudinary.url().secure(true).format("pdf").generate(publicId);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                             .location(URI.create(url))
-                             .build();
+        try {
+            // Verify book exists in database first
+            Book book = bookRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new RuntimeException("Book not found"));
+            
+            String url = cloudinary.url()
+                .secure(true)
+                .resourceType("auto")  // Important for non-image files
+                .format("pdf")         // Adjust based on file type
+                .generate(publicId);
+            
+            return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(url))
+                .build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("Error viewing book: " + e.getMessage());
+        }
     }
 
-    // Endpoint to download a book (forces download via Cloudinary URL)
     @GetMapping("/download/{publicId}")
     public ResponseEntity<?> downloadBook(@PathVariable String publicId) {
-        String downloadUrl = cloudinary.url()
-                                       .secure(true)
-                                       .format("pdf")
-                                       .transformation(new Transformation().flags("attachment"))
-                                       .generate(publicId);
+        try {
+            // Verify book exists
+            bookRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new RuntimeException("Book not found"));
+            
+            String downloadUrl = cloudinary.url()
+                .secure(true)
+                .resourceType("auto")
+                .format("pdf")
+                .transformation(new Transformation().flags("attachment"))
+                .generate(publicId);
 
-        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(downloadUrl)).build();
+            return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(downloadUrl))
+                .build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("Error downloading book: " + e.getMessage());
+        }
     }
 
-    // Endpoint to delete a book from Cloudinary
     @DeleteMapping("/delete/{publicId}")
     public ResponseEntity<?> deleteBook(@PathVariable String publicId) {
         try {
-            Map result = cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+            // First delete from database
+            Book book = bookRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new RuntimeException("Book not found"));
+            
+            bookRepository.delete(book);
+            
+            // Then delete from Cloudinary
+            Map result = cloudinary.uploader()
+                .destroy(publicId, ObjectUtils.emptyMap());
+            
             return ResponseEntity.ok(result);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Delete failed: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Delete failed: " + e.getMessage());
         }
     }
 }

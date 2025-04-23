@@ -78,45 +78,59 @@ public class BookController {
     @GetMapping("/view/{publicId}")
     public ResponseEntity<?> viewBook(@PathVariable String publicId) {
         try {
-            // Verify book exists in database first
+            // 1. Verify book exists in database
             Book book = bookRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new RuntimeException("Book not found"));
             
-            String url = cloudinary.url()
+            // 2. Generate direct Cloudinary URL
+            String viewUrl = cloudinary.url()
                 .secure(true)
-                .resourceType("auto")  // Important for non-image files
-                .format("pdf")         // Adjust based on file type
+                .resourceType("auto")  // Critical for non-image files
+                .format("pdf")        // Match your file type
                 .generate(publicId);
             
+            // 3. Return 302 redirect
             return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(url))
+                .location(URI.create(viewUrl))
                 .build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body("Error viewing book: " + e.getMessage());
+                .body(Map.of(
+                    "error", "View failed",
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+                ));
         }
     }
 
     @GetMapping("/download/{publicId}")
     public ResponseEntity<?> downloadBook(@PathVariable String publicId) {
         try {
-            // Verify book exists
+            // 1. Verify book exists
             bookRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new RuntimeException("Book not found"));
             
+            // 2. Generate download URL with forced attachment
             String downloadUrl = cloudinary.url()
                 .secure(true)
                 .resourceType("auto")
-                .format("pdf")
-                .transformation(new Transformation().flags("attachment"))
+                .transformation(new Transformation()
+                    .flags("attachment")  // Force download
+                    .quality("auto")     // Optional quality setting
+                )
                 .generate(publicId);
 
+            // 3. Return 302 redirect
             return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(downloadUrl))
                 .build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body("Error downloading book: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "error", "Download failed",
+                    "message", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+                ));
         }
     }
 

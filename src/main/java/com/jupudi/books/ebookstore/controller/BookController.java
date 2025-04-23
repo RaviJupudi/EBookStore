@@ -93,17 +93,25 @@ public class BookController {
 
     @GetMapping("/{id}/stream")
     public ResponseEntity<Resource> streamBook(@PathVariable Long id, HttpServletRequest request) {
+        System.out.println("📚 [StreamBook] Requested ID: " + id);
+
         Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found"));
+                .orElseThrow(() -> {
+                    System.out.println("❌ Book not found for ID: " + id);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found");
+                });
 
         Path file = storagePath.resolve(book.getFilename()).normalize();
+        System.out.println("📁 Resolved file path: " + file.toAbsolutePath());
 
         if (!Files.exists(file)) {
+            System.out.println("❌ File not found on server: " + file.toAbsolutePath());
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found on server");
         }
 
         try {
             InputStreamResource resource = new InputStreamResource(Files.newInputStream(file));
+            System.out.println("✅ File found, streaming PDF...");
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)
@@ -114,9 +122,11 @@ public class BookController {
                     .body(resource);
 
         } catch (IOException e) {
+            System.out.println("💥 Error reading file: " + e.getMessage());
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error reading file", e);
         }
     }
+
     
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteBook(@PathVariable Long id) {

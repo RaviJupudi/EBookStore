@@ -100,6 +100,17 @@ public class BookController {
             .location(URI.create(downloadUrl))
             .build();
     }
+    
+    @GetMapping("/download-url/{publicId}")
+    public ResponseEntity<?> getDownloadUrl(@PathVariable String publicId) {
+        String downloadUrl = cloudinary.url()
+            .secure(true)
+            .resourceType("raw")
+            .transformation(new Transformation().flags("attachment"))
+            .generate(publicId);
+        
+        return ResponseEntity.ok(Map.of("downloadUrl", downloadUrl));
+    }
 
     @DeleteMapping("/delete/{publicId}")
     public ResponseEntity<?> deleteBook(@PathVariable String publicId) {

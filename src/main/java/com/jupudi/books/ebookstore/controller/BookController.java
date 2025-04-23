@@ -17,13 +17,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
-import com.jupudi.books.ebookstore.model.Book;
-import com.jupudi.books.ebookstore.repository.BookRepository;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.jupudi.books.ebookstore.model.Book;
+import com.jupudi.books.ebookstore.repository.BookRepository;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,8 @@ public class BookController {
     @Autowired
     private BookRepository bookRepository;
 
-    private final Cloudinary cloudinary;
+    @Autowired
+    private Cloudinary cloudinary;
 
     @PostConstruct
     public void init() {
@@ -92,23 +94,26 @@ public class BookController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found"));
 
         String fileUrl = book.getFileUrl();
+
         if (fileUrl == null || fileUrl.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found on server");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File URL not found");
         }
 
         try {
-            // Fetch file from Cloudinary URL
-            byte[] fileBytes = cloudinary.api().resource(fileUrl, ObjectUtils.emptyMap()).get("file");
-            
+            // Download the file from Cloudinary
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<byte[]> response = restTemplate.getForEntity(fileUrl, byte[].class);
+
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)
                     .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + book.getTitle() + ".pdf\"")
-                    .body(fileBytes);
+                    .body(response.getBody());
 
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error reading file", e);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to stream file", e);
         }
     }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteBook(@PathVariable Long id) {

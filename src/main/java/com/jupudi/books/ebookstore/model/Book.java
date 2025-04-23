@@ -16,4 +16,5 @@ public class Book {
     private String category;
     private String filename;
     private LocalDateTime uploadDate;
+    private String fileUrl;
 }

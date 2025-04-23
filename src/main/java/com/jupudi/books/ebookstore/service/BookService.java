@@ -20,7 +20,8 @@ public class BookService {
     }
 
     // Get all books from the database
-   // public List<Book> getAllBooks() {
+    public List<Book> getAllBooks() {
        // return bookRepository.findAll();
-   // }
+    	return null;
+    }
 }

@@ -2,6 +2,7 @@ package com.jupudi.books.ebookstore.controller;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,7 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
 import com.jupudi.books.ebookstore.model.Book;
+import com.jupudi.books.ebookstore.repository.BookRepository;
 import com.jupudi.books.ebookstore.service.BookService;
 
 @RestController
@@ -31,9 +33,11 @@ public class BookController {
     private Cloudinary cloudinary;
     
     @Autowired
+    private BookRepository bookRepository; 
+    
+    @Autowired
     private BookService bookService;
 
-    // Endpoint to upload book
     @PostMapping("/upload")
     public ResponseEntity<?> uploadBook(
         @RequestParam("file") MultipartFile file,
@@ -41,38 +45,33 @@ public class BookController {
         @RequestParam("category") String category) {
         
         try {
-            // Upload to Cloudinary
+            // 1. Upload to Cloudinary
             Map uploadResult = cloudinary.uploader().upload(
                 file.getBytes(), 
                 ObjectUtils.asMap("resource_type", "auto")
             );
             
-            String publicId = (String) uploadResult.get("public_id");
-            String secureUrl = (String) uploadResult.get("secure_url");
-            
-            // Create and save book to database
+            // 2. Save metadata to database
             Book book = new Book();
             book.setTitle(title);
             book.setCategory(category);
-            book.setPublicId(publicId);
-            book.setUrl(secureUrl);
-            bookService.saveBook(book);
+            book.setPublicId((String) uploadResult.get("public_id"));
+            book.setUrl((String) uploadResult.get("secure_url"));
+            book.setUploadDate(LocalDateTime.now());
             
-            return ResponseEntity.status(HttpStatus.CREATED).body(book);
-        } catch (IOException e) {
+            Book savedBook = bookRepository.save(book);
+            
+            // 3. Return response
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedBook);
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Upload failed: " + e.getMessage());
+                .body(Map.of("error", "Upload failed", "message", e.getMessage()));
         }
     }
     
     @GetMapping
     public ResponseEntity<List<Book>> getAllBooks() {
-        try {
-            List<Book> books = bookService.getAllBooks();
-            return ResponseEntity.ok(books);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
+        return ResponseEntity.ok(bookRepository.findAll());
     }
    
 

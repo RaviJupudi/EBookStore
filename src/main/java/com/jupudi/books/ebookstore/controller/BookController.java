@@ -75,63 +75,30 @@ public class BookController {
     }
    
 
+ // View endpoint
     @GetMapping("/view/{publicId}")
     public ResponseEntity<?> viewBook(@PathVariable String publicId) {
-        try {
-            // 1. Verify book exists in database
-            Book book = bookRepository.findByPublicId(publicId)
-                .orElseThrow(() -> new RuntimeException("Book not found"));
-            
-            // 2. Generate direct Cloudinary URL
-            String viewUrl = cloudinary.url()
-                .secure(true)
-                .resourceType("auto")  // Critical for non-image files
-                .format("pdf")        // Match your file type
-                .generate(publicId);
-            
-            // 3. Return 302 redirect
-            return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(viewUrl))
-                .build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of(
-                    "error", "View failed",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-                ));
-        }
+        String url = cloudinary.url()
+            .secure(true)
+            .resourceType("image")  // Changed to "image" for PDF viewing
+            .format("pdf")
+            .generate(publicId);
+        return ResponseEntity.status(HttpStatus.FOUND)
+            .location(URI.create(url))
+            .build();
     }
 
+    // Download endpoint
     @GetMapping("/download/{publicId}")
     public ResponseEntity<?> downloadBook(@PathVariable String publicId) {
-        try {
-            // 1. Verify book exists
-            bookRepository.findByPublicId(publicId)
-                .orElseThrow(() -> new RuntimeException("Book not found"));
-            
-            // 2. Generate download URL with forced attachment
-            String downloadUrl = cloudinary.url()
-                .secure(true)
-                .resourceType("auto")
-                .transformation(new Transformation()
-                    .flags("attachment")  // Force download
-                    .quality("auto")     // Optional quality setting
-                )
-                .generate(publicId);
-
-            // 3. Return 302 redirect
-            return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(downloadUrl))
-                .build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                    "error", "Download failed",
-                    "message", e.getMessage(),
-                    "timestamp", LocalDateTime.now()
-                ));
-        }
+        String downloadUrl = cloudinary.url()
+            .secure(true)
+            .resourceType("raw")
+            .transformation(new Transformation().flags("attachment"))
+            .generate(publicId);
+        return ResponseEntity.status(HttpStatus.FOUND)
+            .location(URI.create(downloadUrl))
+            .build();
     }
 
     @DeleteMapping("/delete/{publicId}")

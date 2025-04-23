@@ -2,6 +2,7 @@ package com.jupudi.books.ebookstore.controller;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
+import com.jupudi.books.ebookstore.model.Book;
+import com.jupudi.books.ebookstore.service.BookService;
 
 @RestController
 @RequestMapping("/api/books")
@@ -26,6 +29,9 @@ public class BookController {
 
     @Autowired
     private Cloudinary cloudinary;
+    
+    @Autowired
+    private BookService bookService;
 
     // Endpoint to upload book
     @PostMapping("/upload")
@@ -42,6 +48,17 @@ public class BookController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Upload failed: " + e.getMessage());
         }
     }
+    
+    @GetMapping
+    public ResponseEntity<List<Book>> getAllBooks() {
+        try {
+            List<Book> books = bookService.getAllBooks();
+            return ResponseEntity.ok(books);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+   
 
     // Endpoint to view a book (read-only, redirect to Cloudinary URL)
     @GetMapping("/view/{publicId}")

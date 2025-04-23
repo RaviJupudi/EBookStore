@@ -17,4 +17,5 @@ public class Book {
     private String filename;
     private LocalDateTime uploadDate;
     private String url;
+    private String publicId;
 }
